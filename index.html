@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>River Crossing Puzzle</title>
+    <style>
+        :root {
+            --water-color: #3498db;
+            --land-color: #27ae60;
+            --boat-color: #8e44ad;
+            --text-color: #333;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 { color: var(--text-color); margin-bottom: 10px; }
+        .instructions { background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); max-width: 600px; margin-bottom: 20px; font-size: 0.9em; }
+        
+        #game-area {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 800px;
+            height: 300px;
+            border: 3px solid #333;
+            border-radius: 10px;
+            overflow: hidden;
+            background-color: var(--water-color);
+            position: relative;
+        }
+
+        .bank {
+            width: 30%;
+            background-color: var(--land-color);
+            display: flex;
+            flex-wrap: wrap;
+            align-content: flex-start;
+            padding: 10px;
+            box-sizing: border-box;
+            gap: 5px;
+            transition: background-color 0.3s;
+        }
+
+        .river {
+            width: 40%;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #boat {
+            width: 140px;
+            height: 80px;
+            background-color: var(--boat-color);
+            border-radius: 0 0 40px 40px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding-top: 10px;
+            position: absolute;
+            transition: left 0.5s ease-in-out, transform 0.2s;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            border: 2px solid #fff;
+        }
+
+        /* Boat positions */
+        .boat-left { left: 0; }
+        .boat-right { left: calc(100% - 140px); }
+
+        .person {
+            width: 50px;
+            height: 60px;
+            background-color: white;
+            border-radius: 5px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            cursor: pointer;
+            user-select: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            transition: transform 0.1s;
+        }
+
+        .person:hover { transform: scale(1.1); }
+        .person span { font-size: 10px; font-weight: bold; margin-top: 2px; }
+
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #2c3e50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        button:hover { background-color: #34495e; }
+
+        #message {
+            margin-top: 10px;
+            font-weight: bold;
+            height: 20px;
+            color: #c0392b;
+        }
+
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+    <h1>River Crossing Logic Puzzle</h1>
+
+    <div class="instructions">
+        <strong>Rules:</strong><br>
+        1. Click people to move them onto/off the boat.<br>
+        2. Click "ROW BOAT" to cross.<br>
+        3. Boat holds max 2 people. Only Adults (👮‍♂️, 👨, 👩) can drive.<br>
+        4. Dad 👨 cannot be with Girls 👧 without Mom 👩.<br>
+        5. Mom 👩 cannot be with Boys 👦 without Dad 👨.<br>
+        6. Thief 🦹 cannot be with family members without Policeman 👮‍♂️.
+    </div>
+
+    <div id="game-area">
+        <div id="left-bank" class="bank"></div>
+        
+        <div class="river">
+            <div id="boat" class="boat-left" onclick="tryMoveBoat()">
+                </div>
+        </div>
+
+        <div id="right-bank" class="bank"></div>
+    </div>
+
+    <div class="controls">
+        <button onclick="tryMoveBoat()">ROW BOAT 🛶</button>
+        <div id="message"></div>
+        <button onclick="resetGame()" style="background-color: #e74c3c;">Reset Game</button>
+    </div>
+
+<script>
+    // --- Configuration ---
+    const characters = [
+        { id: 'P', type: 'adult', label: 'Pol', icon: '👮‍♂️' },
+        { id: 'T', type: 'thief', label: 'Thf', icon: '🦹' },
+        { id: 'M', type: 'adult', label: 'Mom', icon: '👩' },
+        { id: 'D', type: 'adult', label: 'Dad', icon: '👨' },
+        { id: 'B1', type: 'kid', label: 'B1', icon: '👦' },
+        { id: 'B2', type: 'kid', label: 'B2', icon: '👦' },
+        { id: 'G1', type: 'kid', label: 'G1', icon: '👧' },
+        { id: 'G2', type: 'kid', label: 'G2', icon: '👧' }
+    ];
+
+    // --- State ---
+    let leftBank = [...characters];
+    let rightBank = [];
+    let boat = [];
+    let boatPosition = 'left'; // 'left' or 'right'
+
+    // --- DOM Elements ---
+    const leftBankEl = document.getElementById('left-bank');
+    const rightBankEl = document.getElementById('right-bank');
+    const boatEl = document.getElementById('boat');
+    const msgEl = document.getElementById('message');
+
+    // --- Initialization ---
+    function render() {
+        leftBankEl.innerHTML = '';
+        rightBankEl.innerHTML = '';
+        boatEl.innerHTML = '';
+
+        leftBank.forEach(char => createCharEl(char, leftBankEl));
+        rightBank.forEach(char => createCharEl(char, rightBankEl));
+        boat.forEach(char => createCharEl(char, boatEl));
+
+        // Update Boat Position Class
+        boatEl.className = boatPosition === 'left' ? 'boat-left' : 'boat-right';
+    }
+
+    function createCharEl(char, parent) {
+        const el = document.createElement('div');
+        el.className = 'person';
+        el.innerHTML = `${char.icon}<span>${char.label}</span>`;
+        el.onclick = (e) => {
+            e.stopPropagation(); // Prevent boat click
+            handleCharClick(char);
+        };
+        parent.appendChild(el);
+    }
+
+    // --- Logic ---
+
+    function handleCharClick(char) {
+        msgEl.textContent = ''; // Clear errors
+
+        // 1. Is char in boat? -> Move to current bank
+        const inBoatIndex = boat.findIndex(c => c.id === char.id);
+        if (inBoatIndex > -1) {
+            boat.splice(inBoatIndex, 1);
+            if (boatPosition === 'left') leftBank.push(char);
+            else rightBank.push(char);
+            render();
+            return;
+        }
+
+        // 2. Is char on current bank? -> Move to boat
+        const currentBank = boatPosition === 'left' ? leftBank : rightBank;
+        const bankIndex = currentBank.findIndex(c => c.id === char.id);
+        
+        if (bankIndex > -1) {
+            if (boat.length < 2) {
+                currentBank.splice(bankIndex, 1);
+                boat.push(char);
+                render();
+            } else {
+                msgEl.textContent = "Boat is full! (Max 2)";
+            }
+        } else {
+            msgEl.textContent = "Boat is on the other side!";
+        }
+    }
+
+    function tryMoveBoat() {
+        msgEl.textContent = '';
+
+        // Rule: Boat cannot be empty
+        if (boat.length === 0) {
+            msgEl.textContent = "Boat cannot move empty.";
+            return;
+        }
+
+        // Rule: Driver must be Adult (P, M, D)
+        const hasDriver = boat.some(c => ['P', 'M', 'D'].includes(c.id));
+        if (!hasDriver) {
+            msgEl.textContent = "Only Adults (Pol, Mom, Dad) can drive.";
+            return;
+        }
+
+        // Calculate HYPOTHETICAL state after move
+        // We need to check if the banks are safe AFTER the boat leaves
+        // The boat passengers are currently NOT on the bank.
+        // We just need to check the 'leftBank' and 'rightBank' arrays as they exist right now (minus boat passengers)
+        // PLUS the arrival side will receive the passengers, but we check safety *during* transit implies checking both sides are stable.
+        
+        // Actually, usually in these puzzles, safety is checked on the banks.
+        // If the boat is in transit, the people in the boat are "safe" (assuming the driver is valid).
+        // We must check if the people *left behind* are safe.
+        // We must also check if the people *arriving* will be safe when they land? 
+        // Standard rule: A state is invalid if a constraint is broken on either bank.
+        
+        // Let's form the hypothetical new banks to check logic fully
+        let nextLeft = [...leftBank];
+        let nextRight = [...rightBank];
+
+        // Currently boat passengers are removed from banks in the state variables. 
+        // So 'leftBank' and 'rightBank' represent who is staying behind.
+        
+        // 1. Check safety of the side we are LEAVING
+        if (!isSafe(leftBank) || !isSafe(rightBank)) {
+             // Logic catch: The 'isSafe' function checks if a bad combo exists.
+             // If we just loaded the boat, 'leftBank' has people remaining.
+             // We need to check if THEY are safe.
+             return; // Error message is set in isSafe
+        }
+
+        // 2. Check safety of the ARRIVAL (Hypothetical)
+        // If we move boat to other side, passengers join that side.
+        let destBank = boatPosition === 'left' ? nextRight : nextLeft;
+        boat.forEach(p => destBank.push(p));
+        
+        // We check if the destination would be safe upon arrival
+        // (Though technically, if the Thief attacks the moment the boat lands, it counts)
+        if (!isSafe(nextLeft)) return;
+        if (!isSafe(nextRight)) return;
+
+        // If all checks pass:
+        boatPosition = boatPosition === 'left' ? 'right' : 'left';
+        render();
+        checkWin();
+    }
+
+    function isSafe(people) {
+        const ids = people.map(p => p.id);
+        const has = (id) => ids.includes(id);
+        const hasAny = (list) => list.some(id => ids.includes(id));
+
+        // Rule: Dad can't be with girls without Mom
+        // Logic: If Dad is present AND Girls are present AND Mom is NOT present -> FAIL
+        if (has('D') && hasAny(['G1', 'G2']) && !has('M')) {
+            msgEl.textContent = "Dad cannot be with Girls without Mom!";
+            return false;
+        }
+
+        // Rule: Mom can't be with boys without Dad
+        // Logic: If Mom is present AND Boys are present AND Dad is NOT present -> FAIL
+        if (has('M') && hasAny(['B1', 'B2']) && !has('D')) {
+            msgEl.textContent = "Mom cannot be with Boys without Dad!";
+            return false;
+        }
+
+        // Rule: Thief can't be with family without Policeman
+        // Family = M, D, B1, B2, G1, G2
+        // Logic: If Thief is present AND Family is present AND Policeman is NOT present -> FAIL
+        const familyIds = ['M', 'D', 'B1', 'B2', 'G1', 'G2'];
+        if (has('T') && hasAny(familyIds) && !has('P')) {
+            msgEl.textContent = "Thief cannot be with Family without Policeman!";
+            return false;
+        }
+
+        return true;
+    }
+
+    function checkWin() {
+        if (rightBank.length === 8 && boat.length === 0) {
+            msgEl.style.color = 'green';
+            msgEl.textContent = "CONGRATULATIONS! YOU SOLVED IT! 🎉";
+        }
+    }
+
+    function resetGame() {
+        leftBank = [...characters];
+        rightBank = [];
+        boat = [];
+        boatPosition = 'left';
+        msgEl.textContent = '';
+        msgEl.style.color = '#c0392b';
+        render();
+    }
+
+    // Start
+    render();
+
+</script>
+</body>
+</html>
