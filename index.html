@@ -3,350 +3,507 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>River Crossing Puzzle</title>
+    <title>Advanced River Crossing</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --water-color: #3498db;
-            --land-color: #27ae60;
-            --boat-color: #8e44ad;
-            --text-color: #333;
+            --sky: linear-gradient(to bottom, #87CEEB, #E0F6FF);
+            --grass: linear-gradient(to bottom, #4CAF50, #388E3C);
+            --sand: #F4A460;
+            --water-1: #2196F3;
+            --water-2: #4FC3F7;
+            --boat: #8D6E63;
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f0f2f5;
+            font-family: 'Roboto', sans-serif;
+            background: var(--sky);
             display: flex;
             flex-direction: column;
             align-items: center;
             margin: 0;
             padding: 20px;
+            min-height: 100vh;
+            box-sizing: border-box;
+            overflow-x: hidden;
         }
 
-        h1 { color: var(--text-color); margin-bottom: 10px; }
-        .instructions { background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); max-width: 600px; margin-bottom: 20px; font-size: 0.9em; }
-        
-        #game-area {
-            display: flex;
-            justify-content: space-between;
+        h1 {
+            font-family: 'Fredoka One', cursive;
+            color: #2c3e50;
+            text-shadow: 2px 2px #fff;
+            margin-bottom: 10px;
+        }
+
+        /* --- Game Environment --- */
+        #game-stage {
+            position: relative;
             width: 100%;
-            max-width: 800px;
-            height: 300px;
-            border: 3px solid #333;
-            border-radius: 10px;
+            max-width: 900px;
+            height: 350px;
+            border-radius: 15px;
             overflow: hidden;
-            background-color: var(--water-color);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            display: flex;
+            background-color: var(--water-1);
+        }
+
+        .bank-container {
+            width: 30%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            z-index: 2;
+        }
+
+        .grass-top { flex: 1; background: var(--grass); }
+        .sand-bank {
+            height: 40px;
+            background: var(--sand);
+            border-top: 3px solid #d28c4f;
             position: relative;
         }
+        /* Irregular sand edge */
+        .sand-bank::after { 
+            content:''; position: absolute; bottom: -10px; left:0; right:0; height: 20px;
+            background: var(--sand); border-radius: 50%; z-index: -1;
+        }
 
-        .bank {
-            width: 30%;
-            background-color: var(--land-color);
+        .bank-area {
+            position: absolute;
+            top: 20px;
+            left: 10px;
+            right: 10px;
             display: flex;
             flex-wrap: wrap;
+            gap: 8px;
             align-content: flex-start;
-            padding: 10px;
-            box-sizing: border-box;
-            gap: 5px;
-            transition: background-color 0.3s;
         }
 
-        .river {
-            width: 40%;
+        /* --- Animated River --- */
+        .river-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(45deg, var(--water-1) 25%, transparent 25%, transparent 75%, var(--water-1) 75%),
+                        linear-gradient(45deg, var(--water-1) 25%, transparent 25%, transparent 75%, var(--water-1) 75%);
+            background-size: 60px 60px;
+            background-position: 0 0, 30px 30px;
+            animation: flowWater 4s linear infinite;
+        }
+
+        @keyframes flowWater {
+            0% { background-position: 0 0, 30px 30px; }
+            100% { background-position: 60px 0, 90px 30px; }
+        }
+        
+        /* Water ripple overlay */
+        .river-container::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: repeating-radial-gradient(circle at 50% 120%, transparent 0, transparent 5px, rgba(255,255,255,0.1) 5px, rgba(255,255,255,0.1) 10px);
+            opacity: 0.5;
+        }
+
+        /* --- The Boat --- */
+        #boat-container {
+            position: absolute;
+            bottom: 20px;
+            left: 2%; /* Start position */
+            width: 160px;
+            height: 70px;
+            transition: left 1s ease-in-out;
+            z-index: 10;
+            filter: drop-shadow(0 5px 5px rgba(0,0,0,0.3));
+            cursor: pointer;
+        }
+        
+        #boat-container.boat-right { left: calc(98% - 160px); }
+
+        #boat-hull {
+            width: 100%;
+            height: 100%;
+            background: var(--boat);
+            border-radius: 0 0 50% 50% / 0 0 100% 100%;
+            border-top: 4px solid #6D4C41;
             position: relative;
             display: flex;
             justify-content: center;
-            align-items: center;
+            padding-top: 5px;
+            gap: 5px;
         }
 
-        #boat {
-            width: 140px;
-            height: 80px;
-            background-color: var(--boat-color);
-            border-radius: 0 0 40px 40px;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            padding-top: 10px;
-            position: absolute;
-            transition: left 0.5s ease-in-out, transform 0.2s;
-            cursor: pointer;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            border: 2px solid #fff;
+        /* Boat Rocking Animation while moving */
+        #boat-container.moving #boat-hull {
+            animation: rockBoat 0.5s ease-in-out infinite alternate;
+        }
+        @keyframes rockBoat {
+            from { transform: rotate(-2deg) translateY(0); }
+            to { transform: rotate(2deg) translateY(2px); }
         }
 
-        /* Boat positions */
-        .boat-left { left: 0; }
-        .boat-right { left: calc(100% - 140px); }
 
+        /* --- Lively Characters --- */
         .person {
-            width: 50px;
-            height: 60px;
-            background-color: white;
-            border-radius: 5px;
+            width: 55px;
+            height: 55px;
+            background: #fff;
+            border-radius: 50%;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            font-size: 24px;
-            cursor: pointer;
-            user-select: none;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-            transition: transform 0.1s;
+            font-size: 28px;
+            cursor: grab;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            border: 3px solid #fff;
+            transition: transform 0.2s, border-color 0.2s;
+            position: relative;
+            /* Idle breathing animation */
+            animation: breathe 3s ease-in-out infinite alternate;
+            animation-delay: calc(var(--delay) * 0.5s);
         }
 
-        .person:hover { transform: scale(1.1); }
-        .person span { font-size: 10px; font-weight: bold; margin-top: 2px; }
+        @keyframes breathe {
+            from { transform: translateY(0); }
+            to { transform: translateY(-4px); }
+        }
 
-        .controls {
-            margin-top: 20px;
+        .person:hover { transform: scale(1.1) translateY(-5px); z-index: 100;}
+        .person:active { cursor: grabbing; transform: scale(0.95); }
+
+        .person span {
+            font-size: 10px; font-weight: 700; font-family: 'Roboto';
+            position: absolute; bottom: -12px;
+            background: rgba(255,255,255,0.8); padding: 2px 4px; borderRadius: 4px;
+        }
+
+        /* Role-based Styling */
+        .role-cop { border-color: #3498db; background: #EBF5FB; }
+        .role-thief { border-color: #2c3e50; background: #D6DBDF; }
+        .role-adult { border-color: #e67e22; background: #FDF2E9; }
+        .role-kid { border-color: #F1C40F; background: #FEF9E7; }
+
+
+        /* --- UI & Controls --- */
+        .controls-area {
+            margin-top: 25px;
             display: flex;
-            gap: 10px;
             flex-direction: column;
             align-items: center;
+            gap: 15px;
+            width: 100%;
+            max-width: 600px;
         }
 
-        button {
-            padding: 10px 20px;
-            font-size: 16px;
-            cursor: pointer;
-            background-color: #2c3e50;
-            color: white;
+        .btn-main {
+            padding: 12px 30px;
+            font-family: 'Fredoka One', cursive;
+            font-size: 20px;
             border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            background: linear-gradient(to bottom, #2ecc71, #27ae60);
+            color: white;
+            box-shadow: 0 5px #1e8449;
+            transition: all 0.1s;
+        }
+        .btn-main:hover { margin-top: 2px; box-shadow: 0 3px #1e8449; background: linear-gradient(to bottom, #2ecc71, #2ecc71); }
+        .btn-main:active { margin-top: 5px; box-shadow: 0 0 #1e8449; }
+        .btn-main:disabled { background: #bdc3c7; box-shadow: none; color: #7f8c8d; cursor: not-allowed; }
+
+        #message-box {
+            min-height: 30px;
+            font-weight: bold;
+            color: #c0392b;
+            text-align: center;
+            padding: 5px 15px;
             border-radius: 5px;
         }
-        button:hover { background-color: #34495e; }
+        .error-shake { animation: shake 0.4s linear; }
+        @keyframes shake { 0%, 100% { transform: translateX(0);} 25% { transform: translateX(-10px);} 75% { transform: translateX(10px);} }
 
-        #message {
-            margin-top: 10px;
-            font-weight: bold;
-            height: 20px;
-            color: #c0392b;
+        .instructions-toggle {
+            background: #fff; color: #333; padding: 8px 15px; border-radius: 20px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
+        .rules-panel {
+            background: rgba(255,255,255,0.95); padding: 20px; border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1); display: none; margin-bottom: 20px;
+        }
+        .rules-panel.show { display: block; }
+        .rules-panel ul { text-align: left; padding-left: 20px; margin: 10px 0; }
+        .rules-panel li { margin-bottom: 8px; }
 
-        .hidden { display: none; }
     </style>
 </head>
 <body>
 
-    <h1>River Crossing Logic Puzzle</h1>
+    <h1>River Crossing Adventure</h1>
 
-    <div class="instructions">
-        <strong>Rules:</strong><br>
-        1. Click people to move them onto/off the boat.<br>
-        2. Click "ROW BOAT" to cross.<br>
-        3. Boat holds max 2 people. Only Adults (👮‍♂️, 👨, 👩) can drive.<br>
-        4. Dad 👨 cannot be with Girls 👧 without Mom 👩.<br>
-        5. Mom 👩 cannot be with Boys 👦 without Dad 👨.<br>
-        6. Thief 🦹 cannot be with family members without Policeman 👮‍♂️.
+    <div class="instructions-toggle" onclick="toggleRules()">📜 Show/Hide Rules</div>
+    <div class="rules-panel" id="rulesPanel">
+        <strong>The Rules:</strong>
+        <ul>
+            <li>Boat holds max 2 people. Only Adults (👮‍♂️, 👨, 👩) can drive.</li>
+            <li><strong>Dad</strong> 👨 cannot be with Girls 👧 without Mom present.</li>
+            <li><strong>Mom</strong> 👩 cannot be with Boys 👦 without Dad present.</li>
+            <li><strong>Thief</strong> 🦹 cannot be with any family member unless Policeman 👮‍♂️ is there.</li>
+        </ul>
+        <p><em>Click people to load/unload. Click the big green button to cross.</em></p>
     </div>
 
-    <div id="game-area">
-        <div id="left-bank" class="bank"></div>
-        
-        <div class="river">
-            <div id="boat" class="boat-left" onclick="tryMoveBoat()">
-                </div>
+    <div id="game-stage">
+        <div class="bank-container">
+            <div class="grass-top">
+                <div id="left-bank" class="bank-area"></div>
+            </div>
+            <div class="sand-bank"></div>
         </div>
 
-        <div id="right-bank" class="bank"></div>
+        <div class="river-container">
+            <div id="boat-container" class="boat-left" onclick="tryMoveBoat()">
+                <div id="boat-hull">
+                    </div>
+            </div>
+        </div>
+
+        <div class="bank-container">
+            <div class="grass-top">
+                 <div id="right-bank" class="bank-area"></div>
+            </div>
+             <div class="sand-bank"></div>
+        </div>
     </div>
 
-    <div class="controls">
-        <button onclick="tryMoveBoat()">ROW BOAT 🛶</button>
-        <div id="message"></div>
-        <button onclick="resetGame()" style="background-color: #e74c3c;">Reset Game</button>
+    <div class="controls-area">
+        <div id="message-box"></div>
+        <button id="rowBtn" class="btn-main" onclick="tryMoveBoat()">ROW BOAT 🛶</button>
+        <button onclick="resetGame()" style="background: none; border: none; color: #555; cursor: pointer; text-decoration: underline;">Reset Level</button>
     </div>
 
 <script>
     // --- Configuration ---
     const characters = [
-        { id: 'P', type: 'adult', label: 'Pol', icon: '👮‍♂️' },
-        { id: 'T', type: 'thief', label: 'Thf', icon: '🦹' },
-        { id: 'M', type: 'adult', label: 'Mom', icon: '👩' },
-        { id: 'D', type: 'adult', label: 'Dad', icon: '👨' },
-        { id: 'B1', type: 'kid', label: 'B1', icon: '👦' },
-        { id: 'B2', type: 'kid', label: 'B2', icon: '👦' },
-        { id: 'G1', type: 'kid', label: 'G1', icon: '👧' },
-        { id: 'G2', type: 'kid', label: 'G2', icon: '👧' }
+        { id: 'P', role: 'cop', label: 'Pol', icon: '👮‍♂️' },
+        { id: 'T', role: 'thief', label: 'Thf', icon: '🦹' },
+        { id: 'M', role: 'adult', label: 'Mom', icon: '👩' },
+        { id: 'D', role: 'adult', label: 'Dad', icon: '👨' },
+        { id: 'B1', role: 'kid', label: 'Boy1', icon: '👦' },
+        { id: 'B2', role: 'kid', label: 'Boy2', icon: '👦' },
+        { id: 'G1', role: 'kid', label: 'Grl1', icon: '👧' },
+        { id: 'G2', role: 'kid', label: 'Grl2', icon: '👧' }
     ];
 
     // --- State ---
-    let leftBank = [...characters];
-    let rightBank = [];
-    let boat = [];
+    let leftBankState = [...characters];
+    let rightBankState = [];
+    let boatState = [];
     let boatPosition = 'left'; // 'left' or 'right'
+    let isAnimating = false;
 
     // --- DOM Elements ---
     const leftBankEl = document.getElementById('left-bank');
     const rightBankEl = document.getElementById('right-bank');
-    const boatEl = document.getElementById('boat');
-    const msgEl = document.getElementById('message');
+    const boatHullEl = document.getElementById('boat-hull');
+    const boatContainerEl = document.getElementById('boat-container');
+    const msgEl = document.getElementById('message-box');
+    const rowBtnEl = document.getElementById('rowBtn');
 
     // --- Initialization ---
     function render() {
+        // Clear current views
         leftBankEl.innerHTML = '';
         rightBankEl.innerHTML = '';
-        boatEl.innerHTML = '';
+        boatHullEl.innerHTML = '';
 
-        leftBank.forEach(char => createCharEl(char, leftBankEl));
-        rightBank.forEach(char => createCharEl(char, rightBankEl));
-        boat.forEach(char => createCharEl(char, boatEl));
+        // Render Characters to their respective zones
+        leftBankState.forEach((char, i) => createCharEl(char, leftBankEl, i));
+        rightBankState.forEach((char, i) => createCharEl(char, rightBankEl, i));
+        boatState.forEach((char, i) => createCharEl(char, boatHullEl, i));
 
-        // Update Boat Position Class
-        boatEl.className = boatPosition === 'left' ? 'boat-left' : 'boat-right';
+        // Update Row Button State
+        rowBtnEl.disabled = isAnimating;
     }
 
-    function createCharEl(char, parent) {
+    function createCharEl(char, parent, index) {
         const el = document.createElement('div');
-        el.className = 'person';
+        el.className = `person role-${char.role}`;
+        // Add a randomish delay so they don't all breathe in sync
+        el.style.setProperty('--delay', index + Math.random()); 
         el.innerHTML = `${char.icon}<span>${char.label}</span>`;
         el.onclick = (e) => {
-            e.stopPropagation(); // Prevent boat click
-            handleCharClick(char);
+            e.stopPropagation();
+            if(!isAnimating) handleCharClick(char);
         };
         parent.appendChild(el);
     }
 
-    // --- Logic ---
+    // --- Core Logic ---
 
     function handleCharClick(char) {
-        msgEl.textContent = ''; // Clear errors
+        clearError();
 
         // 1. Is char in boat? -> Move to current bank
-        const inBoatIndex = boat.findIndex(c => c.id === char.id);
+        const inBoatIndex = boatState.findIndex(c => c.id === char.id);
         if (inBoatIndex > -1) {
-            boat.splice(inBoatIndex, 1);
-            if (boatPosition === 'left') leftBank.push(char);
-            else rightBank.push(char);
+            boatState.splice(inBoatIndex, 1);
+            if (boatPosition === 'left') leftBankState.push(char);
+            else rightBankState.push(char);
             render();
             return;
         }
 
         // 2. Is char on current bank? -> Move to boat
-        const currentBank = boatPosition === 'left' ? leftBank : rightBank;
-        const bankIndex = currentBank.findIndex(c => c.id === char.id);
+        const currentBankState = boatPosition === 'left' ? leftBankState : rightBankState;
+        const bankIndex = currentBankState.findIndex(c => c.id === char.id);
         
         if (bankIndex > -1) {
-            if (boat.length < 2) {
-                currentBank.splice(bankIndex, 1);
-                boat.push(char);
+            if (boatState.length < 2) {
+                currentBankState.splice(bankIndex, 1);
+                boatState.push(char);
                 render();
             } else {
-                msgEl.textContent = "Boat is full! (Max 2)";
+                showError("Boat is full! (Max 2)");
             }
         } else {
-            msgEl.textContent = "Boat is on the other side!";
+             showError("That person is on the other side!");
         }
     }
 
     function tryMoveBoat() {
-        msgEl.textContent = '';
+        if(isAnimating) return;
+        clearError();
 
-        // Rule: Boat cannot be empty
-        if (boat.length === 0) {
-            msgEl.textContent = "Boat cannot move empty.";
+        // Rule Checks (Pre-move)
+        if (boatState.length === 0) {
+            showError("The boat cannot move empty.");
             return;
         }
-
-        // Rule: Driver must be Adult (P, M, D)
-        const hasDriver = boat.some(c => ['P', 'M', 'D'].includes(c.id));
+        const hasDriver = boatState.some(c => ['P', 'M', 'D'].includes(c.id));
         if (!hasDriver) {
-            msgEl.textContent = "Only Adults (Pol, Mom, Dad) can drive.";
+            showError("Only Adults (Policeman, Mom, Dad) can operate the boat.");
             return;
         }
 
-        // Calculate HYPOTHETICAL state after move
-        // We need to check if the banks are safe AFTER the boat leaves
-        // The boat passengers are currently NOT on the bank.
-        // We just need to check the 'leftBank' and 'rightBank' arrays as they exist right now (minus boat passengers)
-        // PLUS the arrival side will receive the passengers, but we check safety *during* transit implies checking both sides are stable.
-        
-        // Actually, usually in these puzzles, safety is checked on the banks.
-        // If the boat is in transit, the people in the boat are "safe" (assuming the driver is valid).
-        // We must check if the people *left behind* are safe.
-        // We must also check if the people *arriving* will be safe when they land? 
-        // Standard rule: A state is invalid if a constraint is broken on either bank.
-        
-        // Let's form the hypothetical new banks to check logic fully
-        let nextLeft = [...leftBank];
-        let nextRight = [...rightBank];
+        // --- The Animation Sequence ---
+        isAnimating = true;
+        render(); // Disable controls
 
-        // Currently boat passengers are removed from banks in the state variables. 
-        // So 'leftBank' and 'rightBank' represent who is staying behind.
+        // 1. Add rocking / moving classes
+        boatContainerEl.classList.add('moving');
         
-        // 1. Check safety of the side we are LEAVING
-        if (!isSafe(leftBank) || !isSafe(rightBank)) {
-             // Logic catch: The 'isSafe' function checks if a bad combo exists.
-             // If we just loaded the boat, 'leftBank' has people remaining.
-             // We need to check if THEY are safe.
-             return; // Error message is set in isSafe
+        // 2. Change position class to trigger CSS transition
+        if (boatPosition === 'left') {
+            boatContainerEl.classList.remove('boat-left');
+            boatContainerEl.classList.add('boat-right');
+        } else {
+            boatContainerEl.classList.remove('boat-right');
+            boatContainerEl.classList.add('boat-left');
         }
 
-        // 2. Check safety of the ARRIVAL (Hypothetical)
-        // If we move boat to other side, passengers join that side.
-        let destBank = boatPosition === 'left' ? nextRight : nextLeft;
-        boat.forEach(p => destBank.push(p));
-        
-        // We check if the destination would be safe upon arrival
-        // (Though technically, if the Thief attacks the moment the boat lands, it counts)
-        if (!isSafe(nextLeft)) return;
-        if (!isSafe(nextRight)) return;
+        // 3. Wait for transition to finish (1s matches CSS transition time)
+        setTimeout(() => {
+            // Animation done. Update logical state.
+            boatPosition = boatPosition === 'left' ? 'right' : 'left';
+            boatContainerEl.classList.remove('moving');
+            isAnimating = false;
 
-        // If all checks pass:
-        boatPosition = boatPosition === 'left' ? 'right' : 'left';
-        render();
-        checkWin();
+            // 4. Check Safety on arrival bank
+            checkArrivalSafety();
+            render(); // Re-enable controls
+        }, 1000);
     }
 
-    function isSafe(people) {
-        const ids = people.map(p => p.id);
+
+    function checkArrivalSafety() {
+        // We need to verify the safety of the bank the boat just arrived at.
+        // The passengers are still logically in the 'boatState', but they are present at the destination.
+        
+        let bankToCheckState = boatPosition === 'left' ? [...leftBankState] : [...rightBankState];
+        // Temporarily add boat passengers to check the combination
+        boatState.forEach(p => bankToCheckState.push(p));
+
+        const safetyResult = getSafetyStatus(bankToCheckState);
+
+        if (!safetyResult.safe) {
+            showError(safetyResult.reason);
+            // Optional: Auto-return boat if unsafe? 
+            // For this version, we'll let them stay but show the error.
+            // To make it stricter, uncomment the next line:
+            // forceReturnBoat(); 
+        } else {
+             checkWinCondition();
+        }
+    }
+
+    function getSafetyStatus(peopleList) {
+        const ids = peopleList.map(p => p.id);
         const has = (id) => ids.includes(id);
         const hasAny = (list) => list.some(id => ids.includes(id));
 
-        // Rule: Dad can't be with girls without Mom
-        // Logic: If Dad is present AND Girls are present AND Mom is NOT present -> FAIL
+        // Rule: Dad & Girls combo
         if (has('D') && hasAny(['G1', 'G2']) && !has('M')) {
-            msgEl.textContent = "Dad cannot be with Girls without Mom!";
-            return false;
+            return { safe: false, reason: "Oh no! Dad cannot be alone with Girls without Mom!" };
         }
-
-        // Rule: Mom can't be with boys without Dad
-        // Logic: If Mom is present AND Boys are present AND Dad is NOT present -> FAIL
+        // Rule: Mom & Boys combo
         if (has('M') && hasAny(['B1', 'B2']) && !has('D')) {
-            msgEl.textContent = "Mom cannot be with Boys without Dad!";
-            return false;
+             return { safe: false, reason: "Oh no! Mom cannot be alone with Boys without Dad!" };
         }
-
-        // Rule: Thief can't be with family without Policeman
-        // Family = M, D, B1, B2, G1, G2
-        // Logic: If Thief is present AND Family is present AND Policeman is NOT present -> FAIL
+        // Rule: Thief & Family combo
         const familyIds = ['M', 'D', 'B1', 'B2', 'G1', 'G2'];
         if (has('T') && hasAny(familyIds) && !has('P')) {
-            msgEl.textContent = "Thief cannot be with Family without Policeman!";
-            return false;
+             return { safe: false, reason: "Alert! The Thief is alone with the family!" };
         }
-
-        return true;
+        return { safe: true };
     }
 
-    function checkWin() {
-        if (rightBank.length === 8 && boat.length === 0) {
-            msgEl.style.color = 'green';
-            msgEl.textContent = "CONGRATULATIONS! YOU SOLVED IT! 🎉";
+    function checkWinCondition() {
+        // Win if everyone is on the right, and boat is empty
+        // (Alternatively, if everyone is on right, even if some just arrived in boat)
+        const totalOnRight = rightBankState.length + (boatPosition === 'right' ? boatState.length : 0);
+        
+        if (totalOnRight === 8) {
+            msgEl.style.color = '#27ae60';
+            msgEl.innerHTML = "🎉 SUCCESS! Everyone crossed safely! 🎉";
+            rowBtnEl.disabled = true;
+            boatContainerEl.onclick = null;
+            isAnimating = true; // Lock game
         }
+    }
+
+    // --- Helper UI Functions ---
+    function showError(txt) {
+        msgEl.textContent = txt;
+        msgEl.style.color = '#c0392b';
+        // Trigger reflow to restart animation
+        void msgEl.offsetWidth; 
+        msgEl.classList.add('error-shake');
+        setTimeout(() => msgEl.classList.remove('error-shake'), 500);
+    }
+
+    function clearError() {
+        msgEl.textContent = '';
+    }
+    
+    function toggleRules() {
+        document.getElementById('rulesPanel').classList.toggle('show');
     }
 
     function resetGame() {
-        leftBank = [...characters];
-        rightBank = [];
-        boat = [];
+        leftBankState = [...characters];
+        rightBankState = [];
+        boatState = [];
         boatPosition = 'left';
+        isAnimating = false;
+        boatContainerEl.classList.add('boat-left');
+        boatContainerEl.classList.remove('boat-right');
         msgEl.textContent = '';
-        msgEl.style.color = '#c0392b';
         render();
     }
 
-    // Start
+    // Start Game
     render();
 
 </script>
